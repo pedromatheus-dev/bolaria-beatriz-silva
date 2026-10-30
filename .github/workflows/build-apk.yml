@@ -1,0 +1,67 @@
+name: Compilar APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Gerar a pasta android/ (o projeto só guarda o código do app)
+        run: |
+          mkdir /tmp/fonte
+          cp -r lib pubspec.yaml /tmp/fonte/
+          flutter create . --platforms=android --org br.com.bolaria --project-name bolaria_entregas
+          rm -rf lib
+          cp -r /tmp/fonte/lib .
+          cp /tmp/fonte/pubspec.yaml .
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q 'permission.INTERNET' "$M" || sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$M"
+          sed -i 's#android:label="[^"]*"#android:label="Bolaria Entregas"#' "$M"
+
+      - name: Restaurar chave de assinatura fixa
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            mkdir -p ~/.android
+            echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+          else
+            echo "::warning::Segredo KEYSTORE_B64 ausente. O APK será assinado com chave temporária e NÃO atualizará por cima de versões anteriores."
+          fi
+
+      - run: flutter pub get
+
+      - name: Compilar APK
+        run: |
+          flutter build apk --release \
+            --build-number=${{ github.run_number }} \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \
+            --dart-define=GITHUB_REPO=${{ github.repository }}
+          cp build/app/outputs/flutter-apk/app-release.apk bolaria-entregas.apk
+
+      - name: Publicar versão (Release)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Versão ${{ github.run_number }}
+          files: bolaria-entregas.apk
+          make_latest: true

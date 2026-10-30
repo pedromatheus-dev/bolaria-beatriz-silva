@@ -1,0 +1,17 @@
+name: Ping Supabase
+
+on:
+  schedule:
+    - cron: "0 12 * * *"   # todo dia, 12:00 UTC (09:00 no horário de Brasília)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consulta simples ao banco
+        run: |
+          curl --fail --silent --show-error \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/health?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
