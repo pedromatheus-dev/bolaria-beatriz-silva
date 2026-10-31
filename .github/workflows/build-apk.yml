@@ -34,7 +34,7 @@ jobs:
           cp /tmp/fonte/pubspec.yaml .
           M=android/app/src/main/AndroidManifest.xml
           grep -q 'permission.INTERNET' "$M" || sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$M"
-          sed -i 's#android:label="[^"]*"#android:label="Bolaria Entregas"#' "$M"
+          sed -i 's#android:label="[^"]*"#android:label="Bolaria Beatriz"#' "$M"
 
       - name: Restaurar chave de assinatura fixa
         env:
@@ -48,6 +48,14 @@ jobs:
           fi
 
       - run: flutter pub get
+
+      - name: Gerar ícone do app (se assets/icon.png existir)
+        run: |
+          if [ -f assets/icon.png ]; then
+            dart run flutter_launcher_icons
+          else
+            echo "::warning::assets/icon.png não encontrado: o app usará o ícone padrão do Flutter."
+          fi
 
       - name: Compilar APK
         run: |

@@ -154,7 +154,4 @@ grant execute on function public.concluir_entrega(uuid) to authenticated;
 -- ---------- Tempo real (a lista atualiza sozinha) ----------
 alter publication supabase_realtime add table public.deliveries;
 
--- ---------- Produtos iniciais (os demais, cadastre pelo app) ----------
-insert into public.products (nome, preco) values
-  ('Bolo (R$ 14)', 14.00),
-  ('Bolo (R$ 18)', 18.00);
+-- Depois deste arquivo, rode também supabase/migracao_v2.sql

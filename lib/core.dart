@@ -7,6 +7,10 @@ const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 const githubRepo = String.fromEnvironment('GITHUB_REPO'); // "usuario/repositorio"
 
+// Número do WhatsApp do entregador, só dígitos com DDI+DDD (ex.: '5588999999999').
+// Se ficar vazio, o WhatsApp abre para você escolher o contato.
+const whatsappEntregador = '';
+
 SupabaseClient get sb => Supabase.instance.client;
 
 final brl = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');

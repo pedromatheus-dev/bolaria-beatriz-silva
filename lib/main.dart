@@ -19,7 +19,7 @@ class BolariaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Bolaria Entregas',
+      title: 'Bolaria Beatriz',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

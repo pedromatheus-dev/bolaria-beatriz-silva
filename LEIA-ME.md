@@ -1,4 +1,4 @@
-# Bolaria Entregas — guia de instalação (100% gratuito)
+# Bolaria Beatriz — guia de instalação (100% gratuito)
 
 Um único app Android com dois perfis: **dono (admin)** e **entregador**.
 Banco e login: Supabase (plano gratuito). APK compilado de graça no GitHub Actions.
@@ -14,6 +14,9 @@ Banco e login: Supabase (plano gratuito). APK compilado de graça no GitHub Acti
    (South America - São Paulo).
 2. No menu **SQL Editor** > **New query**, cole TODO o conteúdo de `supabase/schema.sql`
    e clique em **Run**. Deve aparecer "Success".
+   Depois rode também, em outra query, `supabase/migracao_v2.sql` (número sequencial,
+   exclusão de canceladas e cadastro completo de produtos).
+   Para atualizar uma instalação que já existe, veja ATUALIZAR.md.
 3. Em **Authentication > Users > Add user > Create new user**, crie 2 usuários
    (e-mail + senha), marcando **Auto Confirm User**:
    - o do dono (ex.: dono@exemplo.com)

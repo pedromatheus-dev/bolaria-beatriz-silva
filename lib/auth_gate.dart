@@ -114,7 +114,7 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   const Icon(Icons.cake, size: 64),
                   const SizedBox(height: 8),
-                  Text('Bolaria Entregas',
+                  Text('Bolaria Beatriz',
                       style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 24),
                   TextField(
