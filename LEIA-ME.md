@@ -16,6 +16,7 @@ Banco e login: Supabase (plano gratuito). APK compilado de graça no GitHub Acti
    e clique em **Run**. Deve aparecer "Success".
    Depois rode também, em outra query, `supabase/migracao_v2.sql` (número sequencial,
    exclusão de canceladas e cadastro completo de produtos).
+   Depois rode também `supabase/migracao_v4.sql` (taxa, combos, histórico, telefones).
    Para atualizar uma instalação que já existe, veja ATUALIZAR.md.
 3. Em **Authentication > Users > Add user > Create new user**, crie 2 usuários
    (e-mail + senha), marcando **Auto Confirm User**:

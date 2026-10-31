@@ -4,18 +4,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core.dart';
-
-const _rotulos = {
-  'pendente': 'Pendente',
-  'aceita': 'Aceita',
-  'concluida': 'Concluída',
-  'cancelada': 'Cancelada',
-};
+import 'delivery_details.dart';
 
 const _nomesStatus = {
   'abertas': 'Abertas',
   'concluidas': 'Concluídas',
   'canceladas': 'Canceladas',
+};
+
+const _nomesPeriodo = {
+  'hoje': 'Hoje',
+  'ontem': 'Ontem',
+  'semana': 'Essa semana',
+  'semana_passada': 'Semana passada',
+  'mes': 'Este mês',
+  'mes_passado': 'Mês passado',
 };
 
 DateTime _dia(DateTime base, int delta) =>
@@ -40,57 +43,37 @@ DateTime _dia(DateTime base, int delta) =>
         DateTime(agora.year, agora.month, 1),
         DateTime(agora.year, agora.month + 1, 1)
       );
+    case 'mes_passado':
+      return (
+        DateTime(agora.year, agora.month - 1, 1),
+        DateTime(agora.year, agora.month, 1)
+      );
   }
   return null;
 }
 
-/// Rótulos dos botões de período, com as datas reais de hoje.
-Map<String, String> _rotulosPeriodo(DateTime agora) {
+String _nomeMes(DateTime d) {
+  final m = DateFormat('MMMM', 'pt_BR').format(d);
+  return m[0].toUpperCase() + m.substring(1);
+}
+
+/// Datas reais de cada período (mostradas no resumo, abaixo dos botões).
+Map<String, String> _datasPeriodo(DateTime agora) {
   final f = DateFormat('dd/MM', 'pt_BR');
   final hoje = DateTime(agora.year, agora.month, agora.day);
   final segunda = _dia(hoje, -(hoje.weekday - 1));
-  final segPassada = _dia(segunda, -7);
-  final domPassado = _dia(segunda, -1);
-  final mes = DateFormat('MMMM', 'pt_BR').format(agora);
-  final mesCap = mes[0].toUpperCase() + mes.substring(1);
-  final semana = f.format(segunda) == f.format(hoje)
+  final semana = segunda == hoje
       ? f.format(hoje)
       : '${f.format(segunda)} a ${f.format(hoje)}';
   return {
-    'hoje': 'Hoje (${f.format(hoje)})',
-    'ontem': 'Ontem (${f.format(_dia(hoje, -1))})',
-    'semana': 'Essa semana ($semana)',
+    'hoje': f.format(hoje),
+    'ontem': f.format(_dia(hoje, -1)),
+    'semana': semana,
     'semana_passada':
-        'Semana passada (${f.format(segPassada)} a ${f.format(domPassado)})',
-    'mes': 'Este mês ($mesCap)',
+        '${f.format(_dia(segunda, -7))} a ${f.format(_dia(segunda, -1))}',
+    'mes': _nomeMes(agora),
+    'mes_passado': _nomeMes(DateTime(agora.year, agora.month - 1, 1)),
   };
-}
-
-String _mensagemWhatsApp(Map<String, dynamic> d) {
-  final itens = List<Map<String, dynamic>>.from(d['delivery_items'] ?? []);
-  final tel = (d['telefone'] ?? '') as String;
-  final obs = (d['observacoes'] ?? '') as String;
-  final b = StringBuffer()
-    ..writeln('🧁 *Bolaria Beatriz*')
-    ..writeln('📦 *Entrega #${d['numero']}*')
-    ..writeln()
-    ..writeln('👤 *Cliente:* ${d['cliente']}')
-    ..writeln('📍 *Endereço:* ${d['endereco']}');
-  if (tel.isNotEmpty) b.writeln('📞 *Telefone:* $tel');
-  b
-    ..writeln('🗓️ *Entregar em:* ${dh(d['scheduled_at'])}')
-    ..writeln('📝 *Solicitado em:* ${dh(d['requested_at'])}')
-    ..writeln()
-    ..writeln('🛒 *Itens:*');
-  for (final i in itens) {
-    final sub = brl.format((i['preco_unit'] as num) * (i['quantidade'] as num));
-    b.writeln('• ${i['quantidade']}x ${i['nome']} — $sub');
-  }
-  b
-    ..writeln()
-    ..writeln('💰 *Total:* ${brl.format(d['total'] as num)}');
-  if (obs.isNotEmpty) b.writeln('🗒️ *Obs:* $obs');
-  return b.toString().trim();
 }
 
 /// Lista de entregas. Usada pelo dono (admin: true) e pelo entregador.
@@ -136,7 +119,7 @@ class DeliveriesListState extends State<DeliveriesList> {
     final req = ++_req;
     final iv = _intervalo(_periodo, DateTime.now());
     try {
-      var q = sb.from('deliveries').select('*, delivery_items(*)');
+      var q = sb.from('deliveries').select();
       switch (_status) {
         case 'abertas':
           q = q.inFilter('status', ['pendente', 'aceita']);
@@ -196,15 +179,6 @@ class DeliveriesListState extends State<DeliveriesList> {
     reload();
   }
 
-  Future<void> _rpc(String fn, String id) async {
-    try {
-      await sb.rpc(fn, params: {'p_id': id});
-      await reload();
-    } catch (e) {
-      if (mounted) aviso(context, 'Erro: $e');
-    }
-  }
-
   Future<bool> _confirmar(String titulo, String botao) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -223,7 +197,8 @@ class DeliveriesListState extends State<DeliveriesList> {
   }
 
   Future<void> _cancelar(Map<String, dynamic> d) async {
-    if (!await _confirmar('Cancelar a entrega #${d['numero']}?', 'Cancelar entrega')) {
+    if (!await _confirmar(
+        'Cancelar a entrega #${d['numero']}?', 'Cancelar entrega')) {
       return;
     }
     try {
@@ -249,26 +224,23 @@ class DeliveriesListState extends State<DeliveriesList> {
     }
   }
 
-  Future<void> _enviarWhatsApp(Map<String, dynamic> d) async {
-    final texto = Uri.encodeComponent(_mensagemWhatsApp(d));
-    final destino = whatsappEntregador.isEmpty ? '' : whatsappEntregador;
-    final uri = Uri.parse('https://wa.me/$destino?text=$texto');
-    try {
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok && mounted) aviso(context, 'Não foi possível abrir o WhatsApp.');
-    } catch (_) {
-      if (mounted) aviso(context, 'Não foi possível abrir o WhatsApp.');
-    }
+  Future<void> _detalhes(Map<String, dynamic> d) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => DeliveryDetailsPage(id: d['id'] as String)),
+    );
+    reload();
   }
 
   Widget _cartao(Map<String, dynamic> d) {
-    final itens = List<Map<String, dynamic>>.from(d['delivery_items'] ?? []);
     final status = d['status'] as String;
     final tel = (d['telefone'] ?? '') as String;
     final obs = (d['observacoes'] ?? '') as String;
     final endereco = d['endereco'] as String;
     final tema = Theme.of(context).textTheme;
     final aberta = status == 'pendente' || status == 'aceita';
+    final id = d['id'] as String;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -285,7 +257,7 @@ class DeliveriesListState extends State<DeliveriesList> {
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary)),
                 ),
-                Chip(label: Text(_rotulos[status] ?? status)),
+                Chip(label: Text(rotulosStatus[status] ?? status)),
               ],
             ),
             Text(d['cliente'] as String,
@@ -299,17 +271,20 @@ class DeliveriesListState extends State<DeliveriesList> {
             if (tel.isNotEmpty) Text('Tel: $tel'),
             if (obs.isNotEmpty) Text('Obs: $obs'),
             const Divider(),
-            for (final i in itens)
-              Text(
-                  '${i['quantidade']}x ${i['nome']}  —  ${brl.format((i['preco_unit'] as num) * (i['quantidade'] as num))}'),
-            const SizedBox(height: 4),
-            Text('Total: ${brl.format(d['total'] as num)}',
+            Text(
+                'Produtos ${brl.format(num2(d['subtotal']))} + Taxa ${brl.format(num2(d['taxa_entrega']))}'),
+            Text('Total: ${brl.format(num2(d['total']))}',
                 style: tema.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children: [
+                FilledButton.tonalIcon(
+                  icon: const Icon(Icons.receipt_long),
+                  label: const Text('Ver detalhes'),
+                  onPressed: () => _detalhes(d),
+                ),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.map),
                   label: const Text('Mapa'),
@@ -330,17 +305,29 @@ class DeliveriesListState extends State<DeliveriesList> {
                         backgroundColor: const Color(0xFF25D366)),
                     icon: const Icon(Icons.send),
                     label: const Text('WhatsApp'),
-                    onPressed: () => _enviarWhatsApp(d),
+                    onPressed: () async {
+                      await encaminharEntrega(context, id);
+                      reload();
+                    },
                   ),
                 if (!widget.admin && status == 'pendente')
                   FilledButton(
-                    onPressed: () => _rpc('aceitar_entrega', d['id'] as String),
+                    onPressed: () async {
+                      await aceitarEntrega(context, id);
+                      reload();
+                    },
                     child: const Text('Aceitar'),
                   ),
                 if (!widget.admin && status == 'aceita')
                   FilledButton(
-                    onPressed: () =>
-                        _rpc('concluir_entrega', d['id'] as String),
+                    onPressed: () async {
+                      try {
+                        await sb.rpc('concluir_entrega', params: {'p_id': id});
+                      } catch (e) {
+                        if (mounted) aviso(context, 'Erro: $e');
+                      }
+                      reload();
+                    },
                     child: const Text('Marcar como concluída'),
                   ),
                 if (widget.admin && aberta)
@@ -366,21 +353,24 @@ class DeliveriesListState extends State<DeliveriesList> {
 
   Widget _dado(String rotulo, String valor) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(rotulo, style: Theme.of(context).textTheme.bodySmall),
           Text(valor,
               style: Theme.of(context)
                   .textTheme
-                  .titleLarge
+                  .titleMedium
                   ?.copyWith(fontWeight: FontWeight.bold)),
         ],
       );
 
-  Widget _resumo(Map<String, String> rotulosPeriodo) {
-    final periodoTxt =
-        _periodo == null ? 'Todas as datas' : rotulosPeriodo[_periodo]!;
-    final valor = _entregas.fold<double>(
-        0, (s, d) => s + (d['total'] as num).toDouble());
+  Widget _resumo(Map<String, String> datas) {
+    final periodoTxt = _periodo == null
+        ? 'Todas as datas'
+        : '${_nomesPeriodo[_periodo]} (${datas[_periodo]})';
+    final produtos = _entregas.fold<double>(0, (s, d) => s + num2(d['subtotal']));
+    final taxas = _entregas.fold<double>(0, (s, d) => s + num2(d['taxa_entrega']));
+    final total = _entregas.fold<double>(0, (s, d) => s + num2(d['total']));
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       color: Theme.of(context).colorScheme.primaryContainer,
@@ -393,16 +383,18 @@ class DeliveriesListState extends State<DeliveriesList> {
               widget.admin
                   ? '${_nomesStatus[_status]} • $periodoTxt'
                   : periodoTxt,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             if (widget.admin)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                spacing: 24,
+                runSpacing: 8,
                 children: [
                   _dado('Entregas', '${_entregas.length}'),
-                  _dado(_status == 'concluidas' ? 'Arrecadado' : 'Valor total',
-                      brl.format(valor)),
+                  _dado('Produtos', brl.format(produtos)),
+                  _dado('Taxas', brl.format(taxas)),
+                  _dado('Total geral', brl.format(total)),
                 ],
               )
             else
@@ -415,7 +407,7 @@ class DeliveriesListState extends State<DeliveriesList> {
 
   @override
   Widget build(BuildContext context) {
-    final rp = _rotulosPeriodo(DateTime.now());
+    final datas = _datasPeriodo(DateTime.now());
     return RefreshIndicator(
       onRefresh: reload,
       child: ListView(
@@ -441,7 +433,7 @@ class DeliveriesListState extends State<DeliveriesList> {
             child: Wrap(
               spacing: 8,
               children: [
-                for (final p in rp.entries)
+                for (final p in _nomesPeriodo.entries)
                   FilterChip(
                     label: Text(p.value),
                     selected: _periodo == p.key,
@@ -450,7 +442,7 @@ class DeliveriesListState extends State<DeliveriesList> {
               ],
             ),
           ),
-          _resumo(rp),
+          _resumo(datas),
           if (_carregando)
             const Padding(
               padding: EdgeInsets.all(32),

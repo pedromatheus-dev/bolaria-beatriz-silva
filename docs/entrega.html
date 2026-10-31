@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bolaria Beatriz - Entrega</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#fdeceb;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#2b2b2b}
+  .card{background:#fff;border-radius:20px;padding:28px;max-width:360px;margin:16px;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.08)}
+  h1{font-size:22px;margin:0 0 8px}
+  p{line-height:1.4}
+  .btn{display:block;background:#e2572b;color:#fff;text-decoration:none;font-weight:700;padding:14px;border-radius:12px;margin:18px 0 8px}
+  .peq{font-size:13px;color:#666}
+  a{color:#e2572b}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🧁 Bolaria Beatriz</h1>
+  <p id="msg">Toque no botão para abrir a entrega no app.</p>
+  <a id="abrir" class="btn" href="#">Abrir no app</a>
+  <p class="peq">App não instalado ou desatualizado? <a id="baixar" href="#">Baixar o app</a></p>
+</div>
+<script>
+(function () {
+  var id = new URLSearchParams(location.search).get('id') || '';
+  var msg = document.getElementById('msg');
+  var abrir = document.getElementById('abrir');
+  var baixar = document.getElementById('baixar');
+
+  var dono = location.hostname.split('.')[0];
+  var repo = location.pathname.split('/')[1] || '';
+  baixar.href = 'https://github.com/' + dono + '/' + repo + '/releases/latest';
+
+  if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
+    msg.textContent = 'Link de entrega inválido.';
+    abrir.style.display = 'none';
+    return;
+  }
+  var pacote = 'br.com.bolaria.bolaria_entregas';
+  var intent = 'intent://entrega/' + id + '#Intent;scheme=bolaria;package=' + pacote + ';end';
+  abrir.href = intent;
+
+  if (!/Android/i.test(navigator.userAgent)) {
+    msg.textContent = 'Abra este link no celular Android onde o app está instalado.';
+    return;
+  }
+  setTimeout(function () { window.location.href = intent; }, 400);
+})();
+</script>
+</body>
+</html>

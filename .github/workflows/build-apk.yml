@@ -32,9 +32,7 @@ jobs:
           rm -rf lib
           cp -r /tmp/fonte/lib .
           cp /tmp/fonte/pubspec.yaml .
-          M=android/app/src/main/AndroidManifest.xml
-          grep -q 'permission.INTERNET' "$M" || sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$M"
-          sed -i 's#android:label="[^"]*"#android:label="Bolaria Beatriz"#' "$M"
+          python3 tools/patch_manifest.py
 
       - name: Restaurar chave de assinatura fixa
         env:
